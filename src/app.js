@@ -11,10 +11,10 @@ app.use(cors({
 }))
 
 //configuring our server we are accepting jsons
-app.use(express.json({ limit: "16kkb" }))
+app.use(express.json({ limit: "16kb" }))
 
 //configuring URL data
-app.use(express.urlencoded({ extended: true, limit: "16kb" })) // by using extended we can pass nested
+app.use(express.urlencoded({ extended: true, limit: "16kb" })) // by using extended we can pass nested objects
 
 //to store some static files and data at our server, in fille named public
 app.use(express.static("public"))
