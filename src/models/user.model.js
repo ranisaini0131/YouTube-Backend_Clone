@@ -61,7 +61,7 @@ userSchema.pre("save", async function (next) {
 
 
     //password encrypted
-    this.password = bcrypt.hash(this.password, 10)
+    this.password = await bcrypt.hash(this.password, 10)
 
     next()
 })
@@ -117,4 +117,4 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 
 
 
-export const USER = mongoose.model("USER", userSchema)
+export const User = mongoose.model("User", userSchema)

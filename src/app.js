@@ -2,6 +2,7 @@ import express from 'express'
 import cors from "cors"
 import cookieParser from 'cookie-parser'
 
+
 const app = express()
 
 //used for all middlewares and configurations
@@ -21,6 +22,14 @@ app.use(express.static("public"))
 
 //to set and access the cookies of target user
 app.use(cookieParser())
+
+
+//import routes
+import userRouter from "./routes/user.route.js"
+
+
+//routes declaration
+app.use('/api/v1/users', userRouter)
 
 
 
