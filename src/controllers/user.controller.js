@@ -190,7 +190,7 @@ const logOutUser = asyncHandler(async (req, res) => {
 const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
-    if (incomingRefreshToken) {
+    if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized request")
     }
 
@@ -236,7 +236,85 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 })
 
 
+const changePassord = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
 
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Invalid password")
+    }
+
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res.status(200)
+        .json(
+            new ApiResponse(200, {}, "Passowrd changed successfully")
+        )
+
+
+})
+
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+
+    return res.status(200)
+        .json(new ApiResponse(200, req.user, "current user fetched successfully"))
+
+
+})
+
+
+const updateUserDetails = asyncHandler(async (req, res) => {
+
+    const { fullName, email } = req.body
+
+    if (!fullName || !email) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    const user = User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName,
+                email: email
+            }
+        },
+        { new: true }
+
+    ).select("-password")
+
+    return res.status(200)
+        .json(new ApiResponse(200, user, "account details updated successfully"))
+
+
+})
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    const image = req.files?.avatar[0]?.path
+
+    if (!image) {
+        throw new ApiError(400, "image file is missing")
+    }
+
+    const updateImage = await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set: {
+                image
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updateImage, "profile picture updated"))
+})
 
 
 
@@ -251,5 +329,9 @@ export {
     registerUser,
     loginUser,
     logOutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changePassord,
+    getCurrentUser,
+    updateUserDetails,
+    updateUserAvatar
 }
