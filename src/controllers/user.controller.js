@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import { mongo } from "mongoose"
+import mongoose from "mongoose"
 
 
 //a custom function to generat
@@ -236,7 +238,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 })
 
 
-const changePassord = asyncHandler(async (req, res) => {
+const changePassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user?._id)
@@ -275,11 +277,11 @@ const updateUserDetails = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
-    const user = User.findByIdAndUpdate(
-        req.user?._id,
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
         {
             $set: {
-                fullName,
+                fullName: fullName,
                 email: email
             }
         },
@@ -293,8 +295,10 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 
 })
 
+
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const image = req.files?.avatar[0]?.path
+    const image = req.file?.path
+
 
     if (!image) {
         throw new ApiError(400, "image file is missing")
@@ -303,7 +307,31 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     const updateImage = await User.findByIdAndUpdate(req.user?._id,
         {
             $set: {
-                image
+                avatar: image
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updateImage, "profile picture updated"))
+})
+
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+    const image = req.file?.path
+
+    if (!image) {
+        throw new ApiError(400, "image file is missing")
+    }
+
+    const updateImage = await User.findByIdAndUpdate(req.user?._id,
+        {
+            $set: {
+                coverImage: image
             }
         },
         {
@@ -321,19 +349,20 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
     const { username } = req.params
 
-    if (username?.trim()) {
+
+    if (!username) {
         throw new ApiError(400, "username is missing")
     }
 
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?._id
+                username: username?.toLowerCase()
             }
         },
         {
             $lookup: {
-                from: "subscription",//model name
+                from: "subscriptions",//model name
                 localField: "_id",
                 foreignField: "channel",
                 as: "subscribers"
@@ -350,10 +379,10 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         {
             $addFields: {
                 subscribersCount: {
-                    $size: "subscribers",
+                    $size: "$subscribers",
                 },
                 channelsSubscribedToCount: {
-                    "$size": "subscribedTo"
+                    "$size": "$subscribedTo"
                 },
                 isSubscribed: {
                     $cond: {
@@ -381,8 +410,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         }
     ])
 
+
     if (!channel?.length) {
-        throw new ApiError(400, "channel does'nt exist")
+        throw new ApiError(400, "channel does'not exist")
     }
 
     return res
@@ -390,6 +420,65 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(200, channel[0], "user channel fetched successfully")
         )
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+
+    // req.user._id==gives the string not mongodb IdleDeadlinewgen we give this string to mongoose, it will convert it into id
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
+                            }
+                        }
+                    }
+
+                ]
+            }
+        }
+    ])
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].watchHistory,
+                "Watch History fetched successfully"
+            )
+        )
+
 })
 
 
@@ -403,9 +492,11 @@ export {
     loginUser,
     logOutUser,
     refreshAccessToken,
-    changePassord,
+    changePassword,
     getCurrentUser,
     updateUserDetails,
     updateUserAvatar,
-    getUserChannelProfile
+    updateUserCoverImage,
+    getUserChannelProfile,
+    getWatchHistory
 }
