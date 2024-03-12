@@ -3,9 +3,8 @@ import connectDB from './db/index.db.js';
 import { app } from './app.js';
 
 dotenv.config({
-    path: './.env',
+    path: './env',
 });
-
 
 
 //becoz we used async-await in database connection, so after connection it is returning a promise
